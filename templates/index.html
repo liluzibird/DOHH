@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+
+<html lang = "en">
+    <head>
+        <meta charset = "UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>DOHH - Directory for Office Hours and Help</title>
+
+        <style>
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        h1 {
+            font-style: italic;
+            color: #c39b00; /* Gold */
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        #classSelection_input {
+            padding: 10px;
+            border: 2px solid #007a33; /* CPP Green */
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #007a33; /* CPP Green */
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #005d26; /* Darker Green on hover */
+        }
+
+        #result_list {
+            list-style-type: none;
+            padding: 0;
+            margin-top: 20px;
+            width: 80%;
+            max-width: 400px;
+        }
+        
+        #result_list li {
+            background-color: white;
+            border: 1px solid #007a33; /* CPP Green */
+            border-radius: 5px;
+            margin-top: 5px;
+            padding: 10px;
+        }
+        </style>
+        
+        <script src=" https://cdn.jsdelivr.net/npm/jquery@4.0.0/dist/jquery.min.js "></script>
+        <script>
+            
+            function search(){
+                //1. Click search > get classSelection
+                console.log("button is clicked")
+                var classSelection = $("#classSelection_input").val();
+                console.log("classSelection is `" + classSelection + "`\n")
+                
+                //2. Call backend server URL /search/<classSelection> get returned results
+        $.ajax({
+            url: "/search/" + encodeURIComponent(classSelection),
+            type: "GET",
+            success: function(data) {
+                //Render results to page
+                //console.log("Success:", data);
+                //console.log("Success: " + data.ClassNum);
+                //3. Render results under the list
+                $("#result_list").empty();
+                for(var i = 0; i<data.length; i++){
+                    console.log("Success: " + data[i]);
+                    console.log("ClassNum: " + data[i].ClassNum);
+                    console.log("CourseNum: " + data[i].CourseNum);
+                    console.log("ProfName: " + data[i].ProfName);
+                    console.log("ProfHours: " + data[i].ProfHours);
+                    $("#result_list").append("CourseNum: " + data[i].ClassNum);
+                    $("#result_list").append("<br>ProfName: " + data[i].ProfName);
+                    $("#result_list").append("<br>ProfHours: " + data[i].ProfHours);
+                    //$("#result_list").add("CourseNum: " + data[i].ClassNum);
+                    //$("#result_list").addBack("ProfName: " + data[i].ProfName);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error("Error:", error);
+            }
+        });
+
+                
+            }
+
+
+        </script>
+    </head>
+    <body>
+    <h1><em>Welcome to DOHH</em></h1>
+    <div style="display: flex; align-items: center;">
+        <input id="classSelection_input" type="number" placeholder="Enter class number..." />
+        <button onclick="search()">Search</button>
+    </div>
+    <ul id="result_list"></ul>
+    </body>
+</html>

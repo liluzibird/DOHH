@@ -83,9 +83,9 @@
                 //console.log("Success: " + data.ClassNum);
                 //3. Render results under the list
                 $("#result_list").empty();
-                        if (data.length === 0) {
-                            // If no results are found, show an error message
-                            $("#result_list").append("Class number could not be found, try again.");
+                if (data.length === 0) {
+                    // If no results are found, show an error message
+                    $("#result_list").append("Class number could not be found, try again.");
                 for(var i = 0; i<data.length; i++){
                     console.log("Success: " + data[i]);
                     console.log("ClassNum: " + data[i].ClassNum);

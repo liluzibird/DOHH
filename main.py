@@ -68,4 +68,5 @@ for row in response.data:
 
 #print(search_Office_Hours(1122))
 
-app.run(host = "127.0.0.1", port=42069)
+#app.run(host = "127.0.0.1", port=42069)
+app.run()

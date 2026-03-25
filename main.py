@@ -11,35 +11,7 @@ response = supabase.table("Classes").select("*").execute()
 
 app = Flask(__name__)
 
-'''
-data = [
-    {
-        "ClassNum" : 32147,
-        "CourseNum" : 3310,
-        "ProfName" : "Yunsheng Wang",
-        "ProfHours" : "Face-to-face in Room 8-9: Monday and Wednesday 10:30am-12:00pm, Virtual on Zoom (https://cpp.zoom.us/j/9756115722): Tuesday 11:00am-12:00pm or by appointment"
-    },
-    {
-        "ClassNum" : 33535,
-        "CourseNum" : 4080,
-        "ProfName" : "Edwin Rodríguez",
-        "ProfHours" : "TuTh 1:00pm – 3:00pm, by appointment"
-    },
-    {
-        "ClassNum" : 33544,
-        "CourseNum" : 4310,
-        "ProfName" : "Tannaz Rezaei Damavandi",
-        "ProfHours" : "MonWed: 1:00 - 2:30 PM. (in-person) and Thu : 9:00 - 10:00 AM (online via Zoom)  (Meeting ID: 432 425 2555, Passcode: CS_CalPoly) or by appointment. For Zoom meetings, to avoid long waiting , please make an appointment in advance."
-    },
-    {
-        "ClassNum" : 32152,
-        "CourseNum" : 4800,
-        "ProfName" : "Yu Sun",
-        "ProfHours" : "Tu/Th 11:15am-12:45pm; or email me for an appointment"
-    },
-]
 
-'''
 
 @app.route("/")
 def start_index():

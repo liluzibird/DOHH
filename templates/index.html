@@ -1,124 +1,146 @@
 <!DOCTYPE html>
-
-<html lang = "en">
-    <head>
-        <meta charset = "UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>DOHH - Directory for Office Hours and Help</title>
-
-        <style>
-
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f2f2f2;
-            color: #333;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            margin: 0;
-        }
-
-        h1 {
-            font-style: italic;
-            color: #c39b00; /* Gold */
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        #classSelection_input {
-            padding: 10px;
-            border: 2px solid #007a33; /* CPP Green */
-            border-radius: 5px;
-            margin-right: 10px;
-        }
-
-        button {
-            padding: 10px 15px;
-            background-color: #007a33; /* CPP Green */
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background-color: #005d26; /* Darker Green on hover */
-        }
-
-        #result_list {
-            list-style-type: none;
-            padding: 0;
-            margin-top: 20px;
-            width: 80%;
-            max-width: 400px;
-        }
-        
-        #result_list li {
-            background-color: white;
-            border: 1px solid #007a33; /* CPP Green */
-            border-radius: 5px;
-            margin-top: 5px;
-            padding: 10px;
-        }
-        </style>
-        
-        <script src=" https://cdn.jsdelivr.net/npm/jquery@4.0.0/dist/jquery.min.js "></script>
-        <script>
-            
-            function search(){
-                //1. Click search > get classSelection
-                console.log("button is clicked")
-                var classSelection = $("#classSelection_input").val();
-                console.log("classSelection is `" + classSelection + "`\n")
-                
-                //2. Call backend server URL /search/<classSelection> get returned results
-        $.ajax({
-            url: "/search/" + encodeURIComponent(classSelection),
-            type: "GET",
-            success: function(data) {
-                //Render results to page
-                //console.log("Success:", data);
-                //console.log("Success: " + data.ClassNum);
-                //3. Render results under the list
-                $("#result_list").empty();
-                if (data.length == 0) {
-                    // If no results are found, show an error message
-                    $("#result_list").append("Class number could not be found, try again.");
-                }
-                for(var i = 0; i<data.length; i++){
-                    console.log("Success: " + data[i]);
-                    console.log("ClassNum: " + data[i].ClassNum);
-                    console.log("CourseNum: " + data[i].CourseNum);
-                    console.log("ProfName: " + data[i].ProfName);
-                    console.log("ProfHours: " + data[i].ProfHours);
-                    $("#result_list").append("CourseNum: " + data[i].ClassNum);
-                    $("#result_list").append("<br>ProfName: " + data[i].ProfName);
-                    $("#result_list").append("<br>ProfHours: " + data[i].ProfHours);
-                    //$("#result_list").add("CourseNum: " + data[i].ClassNum);
-                    //$("#result_list").addBack("ProfName: " + data[i].ProfName);
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error("Error:", error);
-                $("#result_list").empty();
-                $("#result_list").append("Search occured when searching. Try again later.");
-            }
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>DOHH - Directory for Office Hours and Help</title>
+  <style>
+    body{font-family:Arial,sans-serif;background:#f2f2f2;color:#333;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;margin:0}
+    h1{font-style:italic;color:#c39b00;margin-bottom:20px}
+    #classSelection_input{padding:10px;border:2px solid #007a33;border-radius:5px;margin-right:10px}
+    button{padding:10px 15px;background:#007a33;color:#fff;border:none;border-radius:5px;cursor:pointer}
+    button:hover{background:#005d26}
+    #result_list{list-style:none;padding:0;margin-top:20px;width:80%;max-width:600px}
+    .result_item{background:#fff;border:1px solid #007a33;border-radius:5px;margin-top:5px;padding:10px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    .result_main{flex:1}
+    .result_meta{font-size:0.9em;color:#333;margin-top:6px}
+    .vote_box{display:flex;flex-direction:column;align-items:center;gap:6px;margin-left:10px}
+    .vote_btn{background:#eee;color:#333;border-radius:4px;padding:6px 8px;cursor:pointer;border:1px solid #ccc}
+    .vote_btn:hover{background:#ddd}
+    #suggest_btn{margin-left:10px;background:#c39b00}
+    .modal_bg{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:none;align-items:center;justify-content:center}
+    .modal{background:#fff;padding:16px;border-radius:8px;width:320px;box-shadow:0 6px 18px rgba(0,0,0,0.15)}
+    .modal input{width:100%;padding:8px;margin:6px 0;border:1px solid #ccc;border-radius:4px}
+    .more_info{font-size:0.85em;color:#666;margin-top:6px;cursor:pointer}
+    .counts{font-size:0.85em;color:#444;margin-top:6px}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/jquery/dist/jquery.min.js"></script>
+  <script>
+    function renderResults(data){
+      const $list = $("#result_list");
+      $list.empty();
+      if(!data || data.length===0){ $list.append("<li>Class number could not be found, try again.</li>"); return; }
+      data.forEach(item=>{
+        const score = (item.upvotes||0) - (item.downvotes||0);
+        const id = item.id;
+        const $li = $(`
+          <li class="result_item" data-id="${id}">
+            <div class="result_main">
+              <div><strong>Class:</strong> ${item.ClassNum} &nbsp; <strong>Course:</strong> ${item.CourseNum}</div>
+              <div class="result_meta"><strong>Prof:</strong> ${item.ProfName} &nbsp; <strong>Hours:</strong> ${item.ProfHours}</div>
+              <div class="more_info">Show vote details</div>
+              <div class="counts" style="display:none">Upvotes: <span class="upc">${item.upvotes||0}</span> &nbsp; Downvotes: <span class="downc">${item.downvotes||0}</span></div>
+            </div>
+            <div class="vote_box">
+              <button class="vote_btn upvote">▲</button>
+              <div class="vote_count">${score}</div>
+              <button class="vote_btn downvote">▼</button>
+            </div>
+          </li>
+        `);
+        $li.find(".upvote").on("click", ()=> vote(id,"up"));
+        $li.find(".downvote").on("click", ()=> vote(id,"down"));
+        $li.find(".more_info").on("click", function(){
+          const $counts = $(this).siblings(".counts");
+          if($counts.is(":visible")){ $counts.hide(); $(this).text("Show vote details"); }
+          else{ $counts.show(); $(this).text("Hide vote details"); }
         });
+        $list.append($li);
+      });
+    }
 
-                
-            }
+    function search(){
+      const classSelection = $("#classSelection_input").val();
+      if(!classSelection) return;
+      $.ajax({
+        url: "/search/" + encodeURIComponent(classSelection),
+        type: "GET",
+        success: function(data){ renderResults(data); },
+        error: function(){ $("#result_list").empty().append("<li>Search error. Try again later.</li>"); }
+      });
+    }
 
+    function openSuggest(){ $("#modal_bg").show(); }
+    function closeSuggest(){ $("#modal_bg").hide(); $("#suggest_form")[0].reset(); }
 
-        </script>
-    </head>
-    <body>
-    <h1><em>Welcome to DOHH</em></h1>
-    <div style="display: flex; align-items: center;">
-        <input id="classSelection_input" type="number" placeholder="Enter class number..." />
-        <button onclick="search()">Search</button>
+    function submitSuggest(e){
+      e.preventDefault();
+      const payload = {
+        ClassNum: $("#s_ClassNum").val(),
+        CourseNum: $("#s_CourseNum").val(),
+        ProfName: $("#s_ProfName").val(),
+        ProfHours: $("#s_ProfHours").val()
+      };
+      $.ajax({
+        url: "/suggest",
+        type: "POST",
+        contentType: "application/json",
+        data: JSON.stringify(payload),
+        success: function(resp){ closeSuggest(); if($("#classSelection_input").val()==payload.ClassNum) search(); },
+        error: function(){ alert("Could not submit suggestion."); }
+      });
+    }
+
+    function vote(id,type){
+      $.ajax({
+        url: "/vote",
+        type: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({ id:id, vote:type }),
+        success: function(updated){
+          const $li = $(`[data-id='${id}']`);
+          const score = (updated.upvotes||0) - (updated.downvotes||0);
+          $li.find(".vote_count").text(score);
+          $li.find(".upc").text(updated.upvotes||0);
+          $li.find(".downc").text(updated.downvotes||0);
+        },
+        error: function(){ alert("Vote failed."); }
+      });
+    }
+
+    $(function(){
+      $("#suggest_btn").on("click", openSuggest);
+      $("#modal_close").on("click", closeSuggest);
+      $("#suggest_form").on("submit", submitSuggest);
+    });
+  </script>
+</head>
+<body>
+  <h1><em>Welcome to DOHH</em></h1>
+  <div style="display:flex;align-items:center;">
+    <input id="classSelection_input" type="number" placeholder="Enter class number..." />
+    <button onclick="search()">Search</button>
+    <button id="suggest_btn">Suggest</button>
+  </div>
+  <ul id="result_list"></ul>
+
+  <div id="modal_bg" class="modal_bg">
+    <div class="modal">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <strong>Suggest Office Hours</strong>
+        <button id="modal_close">✕</button>
+      </div>
+      <form id="suggest_form">
+        <input id="s_ClassNum" name="ClassNum" type="number" placeholder="ClassNum (e.g., 1122)" required />
+        <input id="s_CourseNum" name="CourseNum" type="text" placeholder="CourseNum (e.g., CS101)" required />
+        <input id="s_ProfName" name="ProfName" type="text" placeholder="ProfName" required />
+        <input id="s_ProfHours" name="ProfHours" type="text" placeholder="ProfHours (e.g., Tue 3-5pm)" required />
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
+          <button type="button" onclick="closeSuggest()">Cancel</button>
+          <button type="submit">Submit</button>
+        </div>
+      </form>
     </div>
-    <ul id="result_list"></ul>
-    </body>
+  </div>
+</body>
 </html>

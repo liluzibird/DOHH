@@ -26,6 +26,10 @@
   </style>
   <script src="https://cdn.jsdelivr.net/npm/jquery/dist/jquery.min.js"></script>
   <script>
+    // Escape to avoid injection
+    function escapeHtml(str){ return String(str||"").replace(/[&<>"']/g, function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]; }); }
+
+    // Render results array (expects server returns array sorted by score desc then createdAt asc)
     function renderResults(data){
       const $list = $("#result_list");
       $list.empty();
@@ -33,13 +37,15 @@
       data.forEach(item=>{
         const score = (item.upvotes||0) - (item.downvotes||0);
         const id = item.id;
+        const created = item.createdAt ? new Date(item.createdAt).toLocaleString() : "";
         const $li = $(`
-          <li class="result_item" data-id="${id}">
+          <li class="result_item" data-id="${escapeHtml(id)}">
             <div class="result_main">
-              <div><strong>Class:</strong> ${item.ClassNum} &nbsp; <strong>Course:</strong> ${item.CourseNum}</div>
-              <div class="result_meta"><strong>Prof:</strong> ${item.ProfName} &nbsp; <strong>Hours:</strong> ${item.ProfHours}</div>
+              <div><strong>Class:</strong> ${escapeHtml(item.ClassNum)} &nbsp; <strong>Course:</strong> ${escapeHtml(item.CourseNum)}</div>
+              <div class="result_meta"><strong>Prof:</strong> ${escapeHtml(item.ProfName)} &nbsp; <strong>Hours:</strong> ${escapeHtml(item.ProfHours)}</div>
               <div class="more_info">Show vote details</div>
               <div class="counts" style="display:none">Upvotes: <span class="upc">${item.upvotes||0}</span> &nbsp; Downvotes: <span class="downc">${item.downvotes||0}</span></div>
+              <div class="meta_created" style="font-size:0.8em;color:#666;margin-top:6px">Submitted: ${escapeHtml(created)}</div>
             </div>
             <div class="vote_box">
               <button class="vote_btn upvote">▲</button>
@@ -65,6 +71,7 @@
       $.ajax({
         url: "/search/" + encodeURIComponent(classSelection),
         type: "GET",
+        dataType: "json",
         success: function(data){ renderResults(data); },
         error: function(){ $("#result_list").empty().append("<li>Search error. Try again later.</li>"); }
       });
@@ -73,22 +80,59 @@
     function openSuggest(){ $("#modal_bg").show(); }
     function closeSuggest(){ $("#modal_bg").hide(); $("#suggest_form")[0].reset(); }
 
+    // Submit suggestion: ensure server creates a new row each time. Client refreshes list after success.
     function submitSuggest(e){
       e.preventDefault();
       const payload = {
-        ClassNum: $("#s_ClassNum").val(),
-        CourseNum: $("#s_CourseNum").val(),
-        ProfName: $("#s_ProfName").val(),
-        ProfHours: $("#s_ProfHours").val()
+        ClassNum: String($("#s_ClassNum").val()).trim(),
+        CourseNum: $("#s_CourseNum").val().trim(),
+        ProfName: $("#s_ProfName").val().trim(),
+        ProfHours: $("#s_ProfHours").val().trim()
       };
+      if(!payload.ClassNum || !payload.CourseNum || !payload.ProfName || !payload.ProfHours){
+        alert("Please fill all fields.");
+        return;
+      }
+
+      const $submitBtn = $("#suggest_form button[type=submit]");
+      $submitBtn.prop("disabled", true);
+
       $.ajax({
         url: "/suggest",
         type: "POST",
         contentType: "application/json",
         data: JSON.stringify(payload),
-        success: function(resp){ closeSuggest(); if($("#classSelection_input").val()==payload.ClassNum) search(); },
-        error: function(){ alert("Could not submit suggestion."); }
+        dataType: "json",
+        success: function(created){
+          closeSuggest();
+          $submitBtn.prop("disabled", false);
+          // If server returned the created record, simply refresh the current results so duplicates show.
+          if($("#classSelection_input").val() == payload.ClassNum){
+            search();
+          } else {
+            // optional: set input to the submitted class so user sees it immediately
+            $("#classSelection_input").val(payload.ClassNum);
+            search();
+          }
+          // lightweight success feedback
+          const $msg = $("<div>")
+            .text("Suggestion submitted")
+            .css({position:"fixed",right:20,top:20,background:"#007a33",color:"#fff",padding:"8px 12px","border-radius":"6px","z-index":9999});
+          $("body").append($msg);
+          setTimeout(()=> $msg.fadeOut(200,()=>$msg.remove()), 1800);
+        },
+        error: function(xhr){
+          $submitBtn.prop("disabled", false);
+          let err = "Could not submit suggestion.";
+          try{
+            const json = JSON.parse(xhr.responseText || "{}");
+            if(json.error) err = json.error;
+            else if(json.message) err = json.message;
+          }catch(e){}
+          alert(err);
+        }
       });
+
     }
 
     function vote(id,type){
@@ -97,12 +141,16 @@
         type: "POST",
         contentType: "application/json",
         data: JSON.stringify({ id:id, vote:type }),
+        dataType: "json",
         success: function(updated){
           const $li = $(`[data-id='${id}']`);
           const score = (updated.upvotes||0) - (updated.downvotes||0);
           $li.find(".vote_count").text(score);
           $li.find(".upc").text(updated.upvotes||0);
           $li.find(".downc").text(updated.downvotes||0);
+          // Refresh whole list to maintain ordering after vote
+          const curClass = $("#classSelection_input").val();
+          if(curClass) search();
         },
         error: function(){ alert("Vote failed."); }
       });
@@ -131,11 +179,11 @@
         <button id="modal_close">✕</button>
       </div>
       <form id="suggest_form">
-        <input id="s_ClassNum" name="ClassNum" type="number" placeholder="ClassNum (e.g., 1122)" required />
-        <input id="s_CourseNum" name="CourseNum" type="text" placeholder="CourseNum (e.g., CS101)" required />
-        <input id="s_ProfName" name="ProfName" type="text" placeholder="ProfName" required />
+        <input id="s_ClassNum" name="ClassNum" type="number" placeholder="ClassNum (e.g., 1234)" required />
+        <input id="s_CourseNum" name="CourseNum" type="text" placeholder="CourseNum (e.g., CS4321)" required />
+        <input id="s_ProfName" name="ProfName" type="text" placeholder="ProfName (e.g., John Smith)" required />
         <input id="s_ProfHours" name="ProfHours" type="text" placeholder="ProfHours (e.g., Tue 3-5pm)" required />
-        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
+        <div style="display:flex;justify-content:flex-end;gap:18px;margin-top:8px;">
           <button type="button" onclick="closeSuggest()">Cancel</button>
           <button type="submit">Submit</button>
         </div>

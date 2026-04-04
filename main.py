@@ -4,6 +4,7 @@ from supabase import create_client
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
+# --- Supabase setup ---
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
@@ -11,8 +12,10 @@ supabase = None
 if SUPABASE_URL and SUPABASE_KEY:
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+
+# --- Routes ---
 @app.route("/")
-def start_index():
+def index():
     return render_template("index.html")
 
 
@@ -23,6 +26,9 @@ def welcome():
 
 @app.route("/search/<classSelection>")
 def search_office_hours(classSelection):
+    if supabase is None:
+        return jsonify({"error": "Server configuration missing"}), 500
+
     try:
         class_num = int(classSelection)
     except Exception:
@@ -41,6 +47,9 @@ def search_office_hours(classSelection):
 
 @app.route("/suggest", methods=["POST"])
 def suggest():
+    if supabase is None:
+        return jsonify({"error": "Server configuration missing"}), 500
+
     try:
         data = request.get_json() or {}
 
@@ -59,11 +68,11 @@ def suggest():
             "p_profhours": prof_hours
         }).execute()
 
-        data = resp.data
-        if not data:
+        result = resp.data
+        if not result:
             return jsonify({"error": "Could not create suggestion."}), 400
 
-        return jsonify(data)
+        return jsonify(result)
 
     except Exception as e:
         print("Suggest error:", repr(e))
@@ -72,6 +81,9 @@ def suggest():
 
 @app.route("/vote", methods=["POST"])
 def vote():
+    if supabase is None:
+        return jsonify({"error": "Server configuration missing"}), 500
+
     try:
         data = request.get_json() or {}
 
@@ -101,5 +113,6 @@ def vote():
         return jsonify({"error": str(e)}), 500
 
 
+# --- Local dev only ---
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True)

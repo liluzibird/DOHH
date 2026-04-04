@@ -1,20 +1,15 @@
 import os
 from flask import Flask, request, jsonify, render_template
 from supabase import create_client
-from dotenv import load_dotenv
-
-load_dotenv()
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise RuntimeError("Missing SUPABASE_URL or SUPABASE_KEY environment variables.")
-
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-
+supabase = None
+if SUPABASE_URL and SUPABASE_KEY:
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 @app.route("/")
 def start_index():

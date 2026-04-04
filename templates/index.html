@@ -4,97 +4,421 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>DOHH - Directory for Office Hours and Help</title>
-  <style>
-    body{font-family:Arial,sans-serif;background:#f2f2f2;color:#333;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;margin:0}
-    h1{font-style:italic;color:#c39b00;margin-bottom:20px}
-    #classSelection_input{padding:10px;border:2px solid #007a33;border-radius:5px;margin-right:10px}
-    button{padding:10px 15px;background:#007a33;color:#fff;border:none;border-radius:5px;cursor:pointer}
-    button:hover{background:#005d26}
-    #result_list{list-style:none;padding:0;margin-top:20px;width:80%;max-width:600px}
-    .result_item{background:#fff;border:1px solid #007a33;border-radius:5px;margin-top:5px;padding:10px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
-    .result_main{flex:1}
-    .result_meta{font-size:0.9em;color:#333;margin-top:6px}
-    .vote_box{display:flex;flex-direction:column;align-items:center;gap:6px;margin-left:10px}
-    .vote_btn{background:#eee;color:#333;border-radius:4px;padding:6px 8px;cursor:pointer;border:1px solid #ccc}
-    .vote_btn:hover{background:#ddd}
-    #suggest_btn{margin-left:10px;background:#c39b00}
-    .modal_bg{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:none;align-items:center;justify-content:center}
-    .modal{background:#fff;padding:16px;border-radius:8px;width:320px;box-shadow:0 6px 18px rgba(0,0,0,0.15)}
-    .modal input{width:100%;padding:8px;margin:6px 0;border:1px solid #ccc;border-radius:4px}
-    .more_info{font-size:0.85em;color:#666;margin-top:6px;cursor:pointer}
-    .counts{font-size:0.85em;color:#444;margin-top:6px}
-  </style>
-  <script src="https://cdn.jsdelivr.net/npm/jquery/dist/jquery.min.js"></script>
-  <script>
-    // Escape to avoid injection
-    function escapeHtml(str){ return String(str||"").replace(/[&<>"']/g, function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]; }); }
 
-    // Render results array (expects server returns array sorted by score desc then createdAt asc)
+  <style>
+    :root{
+      --green:#007a33;
+      --green-dark:#005d26;
+      --gold:#c39b00;
+      --bg:#f4f6f8;
+      --card:#ffffff;
+      --text:#25313c;
+      --muted:#66727f;
+      --border:#d9e1e7;
+      --shadow:0 10px 30px rgba(0,0,0,0.12);
+    }
+
+    *{box-sizing:border-box}
+
+    body{
+      font-family:Arial,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      margin:0;
+      min-height:100vh;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      padding:40px 16px;
+    }
+
+    h1{
+      font-style:italic;
+      color:var(--gold);
+      margin:0 0 20px 0;
+      text-align:center;
+    }
+
+    .toolbar{
+      width:100%;
+      max-width:700px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:center;
+      flex-wrap:wrap;
+    }
+
+    #classSelection_input{
+      flex:1;
+      min-width:240px;
+      padding:12px 14px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      background:#fff;
+      font-size:15px;
+      outline:none;
+    }
+
+    #classSelection_input:focus{
+      border-color:var(--green);
+      box-shadow:0 0 0 3px rgba(0,122,51,0.12);
+    }
+
+    button{
+      padding:11px 16px;
+      background:var(--green);
+      color:#fff;
+      border:none;
+      border-radius:10px;
+      cursor:pointer;
+      font-weight:600;
+      transition:background 0.15s ease, transform 0.05s ease;
+    }
+
+    button:hover{background:var(--green-dark)}
+    button:active{transform:translateY(1px)}
+    button:disabled{opacity:.6;cursor:not-allowed}
+
+    #suggest_btn{background:var(--gold)}
+    #suggest_btn:hover{background:#a98700}
+
+    #result_list{
+      list-style:none;
+      padding:0;
+      margin:24px 0 0 0;
+      width:100%;
+      max-width:700px;
+    }
+
+    .result_item{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:14px;
+      margin-top:12px;
+      padding:16px;
+      display:flex;
+      justify-content:space-between;
+      gap:14px;
+      align-items:flex-start;
+      box-shadow:0 2px 10px rgba(0,0,0,0.04);
+    }
+
+    .result_main{flex:1}
+    .result_title{font-size:16px;line-height:1.5}
+    .result_meta{font-size:14px;color:var(--text);margin-top:8px;line-height:1.5}
+    .meta_created{font-size:12px;color:var(--muted);margin-top:8px}
+
+    .more_info{
+      display:inline-block;
+      font-size:13px;
+      color:var(--green);
+      margin-top:10px;
+      cursor:pointer;
+      font-weight:600;
+    }
+
+    .counts{
+      font-size:13px;
+      color:var(--muted);
+      margin-top:8px;
+    }
+
+    .vote_box{
+      min-width:70px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:8px;
+    }
+
+    .vote_btn{
+      width:40px;
+      height:40px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:0;
+      background:#f0f3f5;
+      color:#34424f;
+      border:1px solid var(--border);
+      border-radius:10px;
+      font-size:18px;
+      line-height:1;
+    }
+
+    .vote_btn:hover{
+      background:#e7ecef;
+    }
+
+    .vote_btn.active{
+      background:var(--green);
+      color:#fff;
+      border-color:var(--green);
+    }
+
+    .vote_count{
+      font-size:18px;
+      font-weight:700;
+      min-width:28px;
+      text-align:center;
+    }
+
+    .modal_bg{
+      position:fixed;
+      inset:0;
+      background:rgba(15,23,42,0.45);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+      z-index:9999;
+      backdrop-filter:blur(2px);
+    }
+
+    .modal{
+      background:#fff;
+      width:100%;
+      max-width:460px;
+      border-radius:16px;
+      box-shadow:var(--shadow);
+      overflow:hidden;
+      animation:popIn .16s ease-out;
+    }
+
+    @keyframes popIn{
+      from{opacity:0; transform:translateY(8px) scale(.98)}
+      to{opacity:1; transform:translateY(0) scale(1)}
+    }
+
+    .modal_header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:18px 20px;
+      border-bottom:1px solid var(--border);
+    }
+
+    .modal_title{
+      font-size:18px;
+      font-weight:700;
+      color:var(--text);
+    }
+
+    .icon_btn{
+      background:transparent;
+      color:var(--muted);
+      padding:8px 10px;
+      border-radius:10px;
+    }
+
+    .icon_btn:hover{
+      background:#f2f4f7;
+      color:var(--text);
+    }
+
+    .modal_body{
+      padding:18px 20px 20px 20px;
+    }
+
+    .modal input{
+      width:100%;
+      padding:12px 14px;
+      margin:8px 0;
+      border:1px solid var(--border);
+      border-radius:10px;
+      font-size:14px;
+      outline:none;
+    }
+
+    .modal input:focus{
+      border-color:var(--green);
+      box-shadow:0 0 0 3px rgba(0,122,51,0.12);
+    }
+
+    .modal_actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      margin-top:12px;
+    }
+
+    .btn_secondary{
+      background:#eef2f4;
+      color:var(--text);
+    }
+
+    .btn_secondary:hover{
+      background:#e3e8eb;
+    }
+
+    .toast{
+      position:fixed;
+      top:20px;
+      right:20px;
+      background:var(--green);
+      color:#fff;
+      padding:10px 14px;
+      border-radius:10px;
+      z-index:10000;
+      box-shadow:var(--shadow);
+      font-weight:600;
+    }
+
+    @media (max-width:640px){
+      .result_item{padding:14px}
+      .vote_box{min-width:58px}
+    }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/jquery/dist/jquery.min.js"></script>
+
+  <script>
+    function escapeHtml(str){
+      return String(str || "").replace(/[&<>"']/g, function(m){
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+      });
+    }
+
+    function getVoterToken(){
+      let token = localStorage.getItem("dohh_voter_token");
+      if(!token){
+        token = "vt_" + crypto.randomUUID();
+        localStorage.setItem("dohh_voter_token", token);
+      }
+      return token;
+    }
+
+    function getStoredVote(id){
+      return localStorage.getItem("dohh_vote_" + id) || "";
+    }
+
+    function setStoredVote(id, value){
+      if(value){
+        localStorage.setItem("dohh_vote_" + id, value);
+      } else {
+        localStorage.removeItem("dohh_vote_" + id);
+      }
+    }
+
     function renderResults(data){
       const $list = $("#result_list");
       $list.empty();
-      if(!data || data.length===0){ $list.append("<li>Class number could not be found, try again.</li>"); return; }
-      data.forEach(item=>{
-        const score = (item.upvotes||0) - (item.downvotes||0);
+
+      if(!data || data.length === 0){
+        $list.append("<li>Class number could not be found, try again.</li>");
+        return;
+      }
+
+      data.forEach(item => {
+        const score = (item.upvotes || 0) - (item.downvotes || 0);
         const id = item.id;
-        const created = item.createdAt ? new Date(item.createdAt).toLocaleString() : "";
+        const created = item.inserted_at ? new Date(item.inserted_at).toLocaleString() : "";
+        const myVote = getStoredVote(id);
+
         const $li = $(`
           <li class="result_item" data-id="${escapeHtml(id)}">
             <div class="result_main">
-              <div><strong>Class:</strong> ${escapeHtml(item.ClassNum)} &nbsp; <strong>Course:</strong> ${escapeHtml(item.CourseNum)}</div>
-              <div class="result_meta"><strong>Prof:</strong> ${escapeHtml(item.ProfName)} &nbsp; <strong>Hours:</strong> ${escapeHtml(item.ProfHours)}</div>
+              <div class="result_title">
+                <strong>Class:</strong> ${escapeHtml(item.ClassNum)}
+                &nbsp;&nbsp;
+                <strong>Course:</strong> ${escapeHtml(item.CourseNum)}
+              </div>
+
+              <div class="result_meta">
+                <strong>Prof:</strong> ${escapeHtml(item.ProfName)}
+                &nbsp;&nbsp;
+                <strong>Hours:</strong> ${escapeHtml(item.ProfHours)}
+              </div>
+
               <div class="more_info">Show vote details</div>
-              <div class="counts" style="display:none">Upvotes: <span class="upc">${item.upvotes||0}</span> &nbsp; Downvotes: <span class="downc">${item.downvotes||0}</span></div>
-              <div class="meta_created" style="font-size:0.8em;color:#666;margin-top:6px">Submitted: ${escapeHtml(created)}</div>
+              <div class="counts" style="display:none">
+                Upvotes: <span class="upc">${item.upvotes || 0}</span>
+                &nbsp;&nbsp;
+                Downvotes: <span class="downc">${item.downvotes || 0}</span>
+              </div>
+
+              <div class="meta_created">
+                Submitted: ${escapeHtml(created)}
+              </div>
             </div>
+
             <div class="vote_box">
-              <button class="vote_btn upvote">▲</button>
+              <button class="vote_btn upvote ${myVote === "up" ? "active" : ""}" type="button">▲</button>
               <div class="vote_count">${score}</div>
-              <button class="vote_btn downvote">▼</button>
+              <button class="vote_btn downvote ${myVote === "down" ? "active" : ""}" type="button">▼</button>
             </div>
           </li>
         `);
-        $li.find(".upvote").on("click", ()=> vote(id,"up"));
-        $li.find(".downvote").on("click", ()=> vote(id,"down"));
+
+        $li.find(".upvote").on("click", () => vote(id, "up"));
+        $li.find(".downvote").on("click", () => vote(id, "down"));
         $li.find(".more_info").on("click", function(){
           const $counts = $(this).siblings(".counts");
-          if($counts.is(":visible")){ $counts.hide(); $(this).text("Show vote details"); }
-          else{ $counts.show(); $(this).text("Hide vote details"); }
+          if($counts.is(":visible")){
+            $counts.hide();
+            $(this).text("Show vote details");
+          } else {
+            $counts.show();
+            $(this).text("Hide vote details");
+          }
         });
+
         $list.append($li);
       });
     }
 
     function search(){
-      const classSelection = $("#classSelection_input").val();
+      const classSelection = $("#classSelection_input").val().trim();
       if(!classSelection) return;
+
       $.ajax({
         url: "/search/" + encodeURIComponent(classSelection),
         type: "GET",
         dataType: "json",
-        success: function(data){ renderResults(data); },
-        error: function(){ $("#result_list").empty().append("<li>Search error. Try again later.</li>"); }
+        success: function(data){
+          renderResults(data);
+        },
+        error: function(){
+          $("#result_list").empty().append("<li>Search error. Try again later.</li>");
+        }
       });
     }
 
-    function openSuggest(){ $("#modal_bg").show(); }
-    function closeSuggest(){ $("#modal_bg").hide(); $("#suggest_form")[0].reset(); }
+    function openSuggest(){
+      $("#modal_bg").css("display", "flex");
+      setTimeout(() => $("#s_ClassNum").trigger("focus"), 50);
+    }
 
-    // Submit suggestion: ensure server creates a new row each time. Client refreshes list after success.
+    function closeSuggest(){
+      $("#modal_bg").hide();
+      $("#suggest_form")[0].reset();
+    }
+
+    function showToast(message){
+      const $msg = $("<div>").addClass("toast").text(message);
+      $("body").append($msg);
+      setTimeout(() => {
+        $msg.fadeOut(200, () => $msg.remove());
+      }, 1800);
+    }
+
     function submitSuggest(e){
       e.preventDefault();
+
       const payload = {
         ClassNum: String($("#s_ClassNum").val()).trim(),
         CourseNum: $("#s_CourseNum").val().trim(),
         ProfName: $("#s_ProfName").val().trim(),
         ProfHours: $("#s_ProfHours").val().trim()
       };
+
       if(!payload.ClassNum || !payload.CourseNum || !payload.ProfName || !payload.ProfHours){
         alert("Please fill all fields.");
         return;
       }
 
-      const $submitBtn = $("#suggest_form button[type=submit]");
+      const $submitBtn = $("#suggest_submit");
       $submitBtn.prop("disabled", true);
 
       $.ajax({
@@ -103,56 +427,53 @@
         contentType: "application/json",
         data: JSON.stringify(payload),
         dataType: "json",
-        success: function(created){
+        success: function(){
           closeSuggest();
           $submitBtn.prop("disabled", false);
-          // If server returned the created record, simply refresh the current results so duplicates show.
-          if($("#classSelection_input").val() == payload.ClassNum){
-            search();
-          } else {
-            // optional: set input to the submitted class so user sees it immediately
-            $("#classSelection_input").val(payload.ClassNum);
-            search();
-          }
-          // lightweight success feedback
-          const $msg = $("<div>")
-            .text("Suggestion submitted")
-            .css({position:"fixed",right:20,top:20,background:"#007a33",color:"#fff",padding:"8px 12px","border-radius":"6px","z-index":9999});
-          $("body").append($msg);
-          setTimeout(()=> $msg.fadeOut(200,()=>$msg.remove()), 1800);
+
+          $("#classSelection_input").val(payload.ClassNum);
+          search();
+          showToast("Suggestion submitted");
         },
         error: function(xhr){
           $submitBtn.prop("disabled", false);
+
           let err = "Could not submit suggestion.";
           try{
             const json = JSON.parse(xhr.responseText || "{}");
             if(json.error) err = json.error;
-            else if(json.message) err = json.message;
-          }catch(e){}
+          } catch(e){}
+
           alert(err);
         }
       });
-
     }
 
-    function vote(id,type){
+    function vote(id, type){
       $.ajax({
         url: "/vote",
         type: "POST",
         contentType: "application/json",
-        data: JSON.stringify({ id:id, vote:type }),
+        data: JSON.stringify({
+          id: id,
+          vote: type,
+          voter_token: getVoterToken()
+        }),
         dataType: "json",
         success: function(updated){
-          const $li = $(`[data-id='${id}']`);
-          const score = (updated.upvotes||0) - (updated.downvotes||0);
-          $li.find(".vote_count").text(score);
-          $li.find(".upc").text(updated.upvotes||0);
-          $li.find(".downc").text(updated.downvotes||0);
-          // Refresh whole list to maintain ordering after vote
-          const curClass = $("#classSelection_input").val();
+          setStoredVote(id, updated.user_vote || "");
+
+          const curClass = $("#classSelection_input").val().trim();
           if(curClass) search();
         },
-        error: function(){ alert("Vote failed."); }
+        error: function(xhr){
+          let msg = "Vote failed.";
+          try{
+            const json = JSON.parse(xhr.responseText || "{}");
+            if(json.error) msg = json.error;
+          }catch(e){}
+          alert(msg);
+        }
       });
     }
 
@@ -160,34 +481,58 @@
       $("#suggest_btn").on("click", openSuggest);
       $("#modal_close").on("click", closeSuggest);
       $("#suggest_form").on("submit", submitSuggest);
+
+      $("#modal_bg").on("click", function(e){
+        if(e.target.id === "modal_bg"){
+          closeSuggest();
+        }
+      });
+
+      $(document).on("keydown", function(e){
+        if(e.key === "Escape"){
+          closeSuggest();
+        }
+      });
+
+      $("#classSelection_input").on("keydown", function(e){
+        if(e.key === "Enter"){
+          search();
+        }
+      });
     });
   </script>
 </head>
 <body>
   <h1><em>Welcome to DOHH</em></h1>
-  <div style="display:flex;align-items:center;">
+
+  <div class="toolbar">
     <input id="classSelection_input" type="number" placeholder="Enter class number..." />
     <button onclick="search()">Search</button>
-    <button id="suggest_btn">Suggest</button>
+    <button id="suggest_btn" type="button">Suggest</button>
   </div>
+
   <ul id="result_list"></ul>
 
   <div id="modal_bg" class="modal_bg">
-    <div class="modal">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <strong>Suggest Office Hours</strong>
-        <button id="modal_close">✕</button>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="suggest_title">
+      <div class="modal_header">
+        <div id="suggest_title" class="modal_title">Suggest Office Hours</div>
+        <button id="modal_close" class="icon_btn" type="button" aria-label="Close">✕</button>
       </div>
-      <form id="suggest_form">
-        <input id="s_ClassNum" name="ClassNum" type="number" placeholder="ClassNum (e.g., 1234)" required />
-        <input id="s_CourseNum" name="CourseNum" type="text" placeholder="CourseNum (e.g., CS4321)" required />
-        <input id="s_ProfName" name="ProfName" type="text" placeholder="ProfName (e.g., John Smith)" required />
-        <input id="s_ProfHours" name="ProfHours" type="text" placeholder="ProfHours (e.g., Tue 3-5pm)" required />
-        <div style="display:flex;justify-content:flex-end;gap:18px;margin-top:8px;">
-          <button type="button" onclick="closeSuggest()">Cancel</button>
-          <button type="submit">Submit</button>
-        </div>
-      </form>
+
+      <div class="modal_body">
+        <form id="suggest_form">
+          <input id="s_ClassNum" name="ClassNum" type="number" placeholder="Class number (e.g. 1234)" required />
+          <input id="s_CourseNum" name="CourseNum" type="text" placeholder="Course number (e.g. CS4321)" required />
+          <input id="s_ProfName" name="ProfName" type="text" placeholder="Professor name" required />
+          <input id="s_ProfHours" name="ProfHours" type="text" placeholder="Office hours (e.g. Tue 3–5pm)" required />
+
+          <div class="modal_actions">
+            <button class="btn_secondary" type="button" onclick="closeSuggest()">Cancel</button>
+            <button id="suggest_submit" type="submit">Submit</button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 </body>

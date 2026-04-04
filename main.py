@@ -4,7 +4,6 @@ from supabase import create_client
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
-# --- Supabase setup ---
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
@@ -13,7 +12,6 @@ if SUPABASE_URL and SUPABASE_KEY:
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
-# --- Routes ---
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -24,25 +22,42 @@ def welcome():
     return "<html><body><h1>Welcome to Directory of Hours and Help (DOHH)!</h1></body></html>"
 
 
-@app.route("/search/<classSelection>")
-def search_office_hours(classSelection):
+@app.route("/search", methods=["POST"])
+def search_classes():
     if supabase is None:
         return jsonify({"error": "Server configuration missing"}), 500
 
     try:
-        class_num = int(classSelection)
-    except Exception:
-        return jsonify([])
+        data = request.get_json() or {}
 
-    try:
-        resp = supabase.rpc("get_class_results", {
-            "p_classnum": class_num
+        subject = str(data.get("Subject", "")).strip() or None
+
+        class_num_raw = str(data.get("ClassNum", "")).strip()
+        class_num = int(class_num_raw) if class_num_raw else None
+
+        course_num = str(data.get("CourseNum", "")).strip() or None
+        course_num_mode = str(data.get("CourseNumMode", "C")).strip() or "C"
+
+        prof_name = str(data.get("ProfName", "")).strip() or None
+        prof_name_mode = str(data.get("ProfNameMode", "B")).strip() or "B"
+
+        prof_hours = str(data.get("ProfHours", "")).strip() or None
+
+        resp = supabase.rpc("search_classes", {
+            "p_subject": subject,
+            "p_classnum": class_num,
+            "p_coursenum": course_num,
+            "p_coursenum_mode": course_num_mode,
+            "p_profname": prof_name,
+            "p_profname_mode": prof_name_mode,
+            "p_profhours": prof_hours
         }).execute()
 
         return jsonify(resp.data or [])
+
     except Exception as e:
         print("Search error:", repr(e))
-        return jsonify([])
+        return jsonify({"error": str(e)}), 400
 
 
 @app.route("/suggest", methods=["POST"])
@@ -53,15 +68,17 @@ def suggest():
     try:
         data = request.get_json() or {}
 
+        subject = str(data.get("Subject", "")).strip()
         class_num = int(data.get("ClassNum"))
         course_num = str(data.get("CourseNum", "")).strip()
         prof_name = str(data.get("ProfName", "")).strip()
         prof_hours = str(data.get("ProfHours", "")).strip()
 
-        if not course_num or not prof_name or not prof_hours:
+        if not subject or not course_num or not prof_name or not prof_hours:
             return jsonify({"error": "All fields are required."}), 400
 
         resp = supabase.rpc("submit_suggestion", {
+            "p_subject": subject,
             "p_classnum": class_num,
             "p_coursenum": course_num,
             "p_profname": prof_name,
@@ -113,6 +130,5 @@ def vote():
         return jsonify({"error": str(e)}), 500
 
 
-# --- Local dev only ---
 if __name__ == "__main__":
     app.run(debug=True)

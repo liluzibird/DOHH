@@ -39,30 +39,61 @@
       text-align:center;
     }
 
-    .toolbar{
+    .search_panel{
       width:100%;
-      max-width:700px;
-      display:flex;
-      gap:10px;
-      align-items:center;
-      justify-content:center;
-      flex-wrap:wrap;
+      max-width:900px;
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:18px;
+      box-shadow:0 2px 10px rgba(0,0,0,0.04);
     }
 
-    #classSelection_input{
-      flex:1;
-      min-width:240px;
+    .form_grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:14px;
+    }
+
+    .field_group{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+
+    .field_group label{
+      font-size:13px;
+      font-weight:700;
+      color:var(--muted);
+    }
+
+    input, select{
+      width:100%;
       padding:12px 14px;
       border:1px solid var(--border);
       border-radius:10px;
       background:#fff;
-      font-size:15px;
+      font-size:14px;
       outline:none;
     }
 
-    #classSelection_input:focus{
+    input:focus, select:focus{
       border-color:var(--green);
       box-shadow:0 0 0 3px rgba(0,122,51,0.12);
+    }
+
+    .inline_combo{
+      display:grid;
+      grid-template-columns:180px 1fr;
+      gap:8px;
+    }
+
+    .actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      margin-top:16px;
+      flex-wrap:wrap;
     }
 
     button{
@@ -83,12 +114,21 @@
     #suggest_btn{background:var(--gold)}
     #suggest_btn:hover{background:#a98700}
 
+    #clear_btn{
+      background:#eef2f4;
+      color:var(--text);
+    }
+
+    #clear_btn:hover{
+      background:#e3e8eb;
+    }
+
     #result_list{
       list-style:none;
       padding:0;
       margin:24px 0 0 0;
       width:100%;
-      max-width:700px;
+      max-width:900px;
     }
 
     .result_item{
@@ -147,10 +187,7 @@
       line-height:1;
     }
 
-    .vote_btn:hover{
-      background:#e7ecef;
-    }
-
+    .vote_btn:hover{background:#e7ecef}
     .vote_btn.active{
       background:var(--green);
       color:#fff;
@@ -183,12 +220,6 @@
       border-radius:16px;
       box-shadow:var(--shadow);
       overflow:hidden;
-      animation:popIn .16s ease-out;
-    }
-
-    @keyframes popIn{
-      from{opacity:0; transform:translateY(8px) scale(.98)}
-      to{opacity:1; transform:translateY(0) scale(1)}
     }
 
     .modal_header{
@@ -221,7 +252,7 @@
       padding:18px 20px 20px 20px;
     }
 
-    .modal input{
+    .modal input, .modal select{
       width:100%;
       padding:12px 14px;
       margin:8px 0;
@@ -229,11 +260,6 @@
       border-radius:10px;
       font-size:14px;
       outline:none;
-    }
-
-    .modal input:focus{
-      border-color:var(--green);
-      box-shadow:0 0 0 3px rgba(0,122,51,0.12);
     }
 
     .modal_actions{
@@ -265,9 +291,9 @@
       font-weight:600;
     }
 
-    @media (max-width:640px){
-      .result_item{padding:14px}
-      .vote_box{min-width:58px}
+    @media (max-width:800px){
+      .form_grid{grid-template-columns:1fr}
+      .inline_combo{grid-template-columns:1fr}
     }
   </style>
 
@@ -306,7 +332,7 @@
       $list.empty();
 
       if(!data || data.length === 0){
-        $list.append("<li>Class number could not be found, try again.</li>");
+        $list.append("<li>No matching entries found.</li>");
         return;
       }
 
@@ -320,6 +346,8 @@
           <li class="result_item" data-id="${escapeHtml(id)}">
             <div class="result_main">
               <div class="result_title">
+                <strong>Subject:</strong> ${escapeHtml(item.Subject || "")}
+                &nbsp;&nbsp;
                 <strong>Class:</strong> ${escapeHtml(item.ClassNum)}
                 &nbsp;&nbsp;
                 <strong>Course:</strong> ${escapeHtml(item.CourseNum)}
@@ -368,26 +396,53 @@
       });
     }
 
-    function search(){
-      const classSelection = $("#classSelection_input").val().trim();
-      if(!classSelection) return;
+    function buildSearchPayload(){
+      return {
+        Subject: $("#subject_input").val().trim(),
+        ClassNum: $("#class_num_input").val().trim(),
+        CourseNum: $("#course_num_input").val().trim(),
+        CourseNumMode: $("#course_num_mode").val(),
+        ProfName: $("#prof_name_input").val().trim(),
+        ProfNameMode: $("#prof_name_mode").val(),
+        ProfHours: $("#prof_hours_input").val().trim()
+      };
+    }
 
+    function search(){
       $.ajax({
-        url: "/search/" + encodeURIComponent(classSelection),
-        type: "GET",
+        url: "/search",
+        type: "POST",
+        contentType: "application/json",
+        data: JSON.stringify(buildSearchPayload()),
         dataType: "json",
         success: function(data){
           renderResults(data);
         },
-        error: function(){
-          $("#result_list").empty().append("<li>Search error. Try again later.</li>");
+        error: function(xhr){
+          let msg = "Search error. Try again later.";
+          try{
+            const json = JSON.parse(xhr.responseText || "{}");
+            if(json.error) msg = json.error;
+          }catch(e){}
+          $("#result_list").empty().append(`<li>${escapeHtml(msg)}</li>`);
         }
       });
     }
 
+    function clearSearch(){
+      $("#subject_input").val("");
+      $("#class_num_input").val("");
+      $("#course_num_input").val("");
+      $("#course_num_mode").val("C");
+      $("#prof_name_input").val("");
+      $("#prof_name_mode").val("B");
+      $("#prof_hours_input").val("");
+      $("#result_list").empty();
+    }
+
     function openSuggest(){
       $("#modal_bg").css("display", "flex");
-      setTimeout(() => $("#s_ClassNum").trigger("focus"), 50);
+      setTimeout(() => $("#s_Subject").trigger("focus"), 50);
     }
 
     function closeSuggest(){
@@ -407,13 +462,14 @@
       e.preventDefault();
 
       const payload = {
+        Subject: $("#s_Subject").val().trim(),
         ClassNum: String($("#s_ClassNum").val()).trim(),
         CourseNum: $("#s_CourseNum").val().trim(),
         ProfName: $("#s_ProfName").val().trim(),
         ProfHours: $("#s_ProfHours").val().trim()
       };
 
-      if(!payload.ClassNum || !payload.CourseNum || !payload.ProfName || !payload.ProfHours){
+      if(!payload.Subject || !payload.ClassNum || !payload.CourseNum || !payload.ProfName || !payload.ProfHours){
         alert("Please fill all fields.");
         return;
       }
@@ -431,7 +487,8 @@
           closeSuggest();
           $submitBtn.prop("disabled", false);
 
-          $("#classSelection_input").val(payload.ClassNum);
+          $("#subject_input").val(payload.Subject);
+          $("#class_num_input").val(payload.ClassNum);
           search();
           showToast("Suggestion submitted");
         },
@@ -462,9 +519,7 @@
         dataType: "json",
         success: function(updated){
           setStoredVote(id, updated.user_vote || "");
-
-          const curClass = $("#classSelection_input").val().trim();
-          if(curClass) search();
+          search();
         },
         error: function(xhr){
           let msg = "Vote failed.";
@@ -481,6 +536,8 @@
       $("#suggest_btn").on("click", openSuggest);
       $("#modal_close").on("click", closeSuggest);
       $("#suggest_form").on("submit", submitSuggest);
+      $("#search_btn").on("click", search);
+      $("#clear_btn").on("click", clearSearch);
 
       $("#modal_bg").on("click", function(e){
         if(e.target.id === "modal_bg"){
@@ -494,8 +551,9 @@
         }
       });
 
-      $("#classSelection_input").on("keydown", function(e){
+      $(".search_enter").on("keydown", function(e){
         if(e.key === "Enter"){
+          e.preventDefault();
           search();
         }
       });
@@ -505,10 +563,142 @@
 <body>
   <h1><em>Welcome to DOHH</em></h1>
 
-  <div class="toolbar">
-    <input id="classSelection_input" type="number" placeholder="Enter class number..." />
-    <button onclick="search()">Search</button>
-    <button id="suggest_btn" type="button">Suggest</button>
+  <div class="search_panel">
+    <div class="form_grid">
+      <div class="field_group">
+        <label for="subject_input">Subject</label>
+        <select id="subject_input" class="search_enter">
+          <option value="">Select</option>
+          <option value="AG">AG - All College</option>
+          <option value="ACC">Accounting</option>
+          <option value="ARO">Aerospace Engineering</option>
+          <option value="ABM">Agribusiness Management</option>
+          <option value="AGS">Agricultural Science</option>
+          <option value="AVS">Animal & Veterinary Science</option>
+          <option value="AHS">Animal Health Science</option>
+          <option value="ANT">Anthropology</option>
+          <option value="AMM">Apparel Merchandising & Mgt</option>
+          <option value="ARC">Architecture</option>
+          <option value="AH">Art History</option>
+          <option value="AST">Astronomy</option>
+          <option value="BIO">Biology</option>
+          <option value="BUS">Business - All College</option>
+          <option value="CPU">Cal Poly University</option>
+          <option value="CHE">Chemical Engineering</option>
+          <option value="CHM">Chemistry</option>
+          <option value="CHN">Chinese</option>
+          <option value="CE">Civil Engineering</option>
+          <option value="COM">Communication</option>
+          <option value="CIS">Computer Information Systems</option>
+          <option value="CS">Computer Science</option>
+          <option value="CRM">Criminology</option>
+          <option value="SME">Ctr for Science & Math Educ</option>
+          <option value="DAN">Dance</option>
+          <option value="EBZ">E-Business - All College</option>
+          <option value="ECS">Early Childhood Studies</option>
+          <option value="EC">Economics</option>
+          <option value="ECI">Edu Curriculum and Instruction</option>
+          <option value="EDD">Educ Leadership Doctorate</option>
+          <option value="EDU">Education</option>
+          <option value="EDL">Educational Leadership</option>
+          <option value="ERA">Educational Rsrch Assessment</option>
+          <option value="ECE">Electrical & Computer Engr</option>
+          <option value="ETM">Electromechanical Systems ET</option>
+          <option value="ETE">Electronic Systems Engrng Tech</option>
+          <option value="EGR">Engineering - All College</option>
+          <option value="EMT">Engineering Management</option>
+          <option value="ENG">English</option>
+          <option value="EWS">Ethnic & Women's Studies</option>
+          <option value="FRL">Finance, Real Estate & Law</option>
+          <option value="FST">Food Science and Technology</option>
+          <option value="FRE">French</option>
+          <option value="GEO">Geography</option>
+          <option value="GSC">Geological Sciences</option>
+          <option value="GER">German</option>
+          <option value="GBA">Grad Bus Admin - All College</option>
+          <option value="HST">History</option>
+          <option value="HRT">Hotel & Restaurant Management</option>
+          <option value="IME">Industrial & Manufacturing Egr</option>
+          <option value="IE">Industrial Engineering</option>
+          <option value="IGE">Interdisciplinary General Ed</option>
+          <option value="IBM">International Business & Mkt</option>
+          <option value="KIN">Kinesiology & Health Promotion</option>
+          <option value="LA">Landscape Architecture</option>
+          <option value="LS">Liberal Studies</option>
+          <option value="LIB">Library</option>
+          <option value="MHR">Management & Human Resources</option>
+          <option value="MFE">Manufacturing Engineering</option>
+          <option value="MPA">Master of Public Adminis</option>
+          <option value="MTE">Materials Engineering</option>
+          <option value="MAT">Mathematics</option>
+          <option value="MAE">Mathematics Education</option>
+          <option value="ME">Mechanical Engineering</option>
+          <option value="MSL">Military Science & Leadership</option>
+          <option value="MU">Music</option>
+          <option value="NTR">Nutrition</option>
+          <option value="OAPL">Office of Academic Planning</option>
+          <option value="PHL">Philosophy</option>
+          <option value="PHY">Physics</option>
+          <option value="PLT">Plant Science</option>
+          <option value="PLS">Political Science</option>
+          <option value="PSY">Psychology</option>
+          <option value="RS">Regenerative Studies</option>
+          <option value="SCI">Science - All College</option>
+          <option value="STS">Science, Technology, Society</option>
+          <option value="SW">Social Work</option>
+          <option value="SOC">Sociology</option>
+          <option value="SPN">Spanish</option>
+          <option value="SPE">Special Education</option>
+          <option value="STA">Statistics</option>
+          <option value="SE">Systems Engineering</option>
+          <option value="TOM">Technology & Operations Mgmt</option>
+          <option value="TH">Theatre</option>
+          <option value="URP">Urban & Regional Planning</option>
+          <option value="VCD">Visual Communication Design</option>
+        </select>
+      </div>
+
+      <div class="field_group">
+        <label for="class_num_input">Class Number</label>
+        <input id="class_num_input" class="search_enter" type="number" placeholder="e.g. 12345">
+      </div>
+
+      <div class="field_group">
+        <label>Course Number</label>
+        <div class="inline_combo">
+          <select id="course_num_mode" class="search_enter">
+            <option value="C" selected>contains</option>
+            <option value="G">greater than or equal to</option>
+            <option value="E">is exactly</option>
+            <option value="T">less than or equal to</option>
+          </select>
+          <input id="course_num_input" class="search_enter" type="text" placeholder="e.g. 200 or CS200">
+        </div>
+      </div>
+
+      <div class="field_group">
+        <label>Professor Name</label>
+        <div class="inline_combo">
+          <select id="prof_name_mode" class="search_enter">
+            <option value="B" selected>begins with</option>
+            <option value="C">contains</option>
+            <option value="E">is exactly</option>
+          </select>
+          <input id="prof_name_input" class="search_enter" type="text" placeholder="e.g. Smith">
+        </div>
+      </div>
+
+      <div class="field_group">
+        <label for="prof_hours_input">Professor Hours</label>
+        <input id="prof_hours_input" class="search_enter" type="text" placeholder="e.g. Tue 3-5pm">
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="clear_btn" type="button">Clear</button>
+      <button id="search_btn" type="button">Search</button>
+      <button id="suggest_btn" type="button">Suggest</button>
+    </div>
   </div>
 
   <ul id="result_list"></ul>
@@ -522,8 +712,98 @@
 
       <div class="modal_body">
         <form id="suggest_form">
-          <input id="s_ClassNum" name="ClassNum" type="number" placeholder="Class number (e.g. 1234)" required />
-          <input id="s_CourseNum" name="CourseNum" type="text" placeholder="Course number (e.g. CS4321)" required />
+          <select id="s_Subject" name="Subject" required>
+            <option value="">Select subject</option>
+            <option value="AG">AG - All College</option>
+            <option value="ACC">Accounting</option>
+            <option value="ARO">Aerospace Engineering</option>
+            <option value="ABM">Agribusiness Management</option>
+            <option value="AGS">Agricultural Science</option>
+            <option value="AVS">Animal & Veterinary Science</option>
+            <option value="AHS">Animal Health Science</option>
+            <option value="ANT">Anthropology</option>
+            <option value="AMM">Apparel Merchandising & Mgt</option>
+            <option value="ARC">Architecture</option>
+            <option value="AH">Art History</option>
+            <option value="AST">Astronomy</option>
+            <option value="BIO">Biology</option>
+            <option value="BUS">Business - All College</option>
+            <option value="CPU">Cal Poly University</option>
+            <option value="CHE">Chemical Engineering</option>
+            <option value="CHM">Chemistry</option>
+            <option value="CHN">Chinese</option>
+            <option value="CE">Civil Engineering</option>
+            <option value="COM">Communication</option>
+            <option value="CIS">Computer Information Systems</option>
+            <option value="CS">Computer Science</option>
+            <option value="CRM">Criminology</option>
+            <option value="SME">Ctr for Science & Math Educ</option>
+            <option value="DAN">Dance</option>
+            <option value="EBZ">E-Business - All College</option>
+            <option value="ECS">Early Childhood Studies</option>
+            <option value="EC">Economics</option>
+            <option value="ECI">Edu Curriculum and Instruction</option>
+            <option value="EDD">Educ Leadership Doctorate</option>
+            <option value="EDU">Education</option>
+            <option value="EDL">Educational Leadership</option>
+            <option value="ERA">Educational Rsrch Assessment</option>
+            <option value="ECE">Electrical & Computer Engr</option>
+            <option value="ETM">Electromechanical Systems ET</option>
+            <option value="ETE">Electronic Systems Engrng Tech</option>
+            <option value="EGR">Engineering - All College</option>
+            <option value="EMT">Engineering Management</option>
+            <option value="ENG">English</option>
+            <option value="EWS">Ethnic & Women's Studies</option>
+            <option value="FRL">Finance, Real Estate & Law</option>
+            <option value="FST">Food Science and Technology</option>
+            <option value="FRE">French</option>
+            <option value="GEO">Geography</option>
+            <option value="GSC">Geological Sciences</option>
+            <option value="GER">German</option>
+            <option value="GBA">Grad Bus Admin - All College</option>
+            <option value="HST">History</option>
+            <option value="HRT">Hotel & Restaurant Management</option>
+            <option value="IME">Industrial & Manufacturing Egr</option>
+            <option value="IE">Industrial Engineering</option>
+            <option value="IGE">Interdisciplinary General Ed</option>
+            <option value="IBM">International Business & Mkt</option>
+            <option value="KIN">Kinesiology & Health Promotion</option>
+            <option value="LA">Landscape Architecture</option>
+            <option value="LS">Liberal Studies</option>
+            <option value="LIB">Library</option>
+            <option value="MHR">Management & Human Resources</option>
+            <option value="MFE">Manufacturing Engineering</option>
+            <option value="MPA">Master of Public Adminis</option>
+            <option value="MTE">Materials Engineering</option>
+            <option value="MAT">Mathematics</option>
+            <option value="MAE">Mathematics Education</option>
+            <option value="ME">Mechanical Engineering</option>
+            <option value="MSL">Military Science & Leadership</option>
+            <option value="MU">Music</option>
+            <option value="NTR">Nutrition</option>
+            <option value="OAPL">Office of Academic Planning</option>
+            <option value="PHL">Philosophy</option>
+            <option value="PHY">Physics</option>
+            <option value="PLT">Plant Science</option>
+            <option value="PLS">Political Science</option>
+            <option value="PSY">Psychology</option>
+            <option value="RS">Regenerative Studies</option>
+            <option value="SCI">Science - All College</option>
+            <option value="STS">Science, Technology, Society</option>
+            <option value="SW">Social Work</option>
+            <option value="SOC">Sociology</option>
+            <option value="SPN">Spanish</option>
+            <option value="SPE">Special Education</option>
+            <option value="STA">Statistics</option>
+            <option value="SE">Systems Engineering</option>
+            <option value="TOM">Technology & Operations Mgmt</option>
+            <option value="TH">Theatre</option>
+            <option value="URP">Urban & Regional Planning</option>
+            <option value="VCD">Visual Communication Design</option>
+          </select>
+
+          <input id="s_ClassNum" name="ClassNum" type="number" placeholder="Class number (e.g. 12345)" required />
+          <input id="s_CourseNum" name="CourseNum" type="text" placeholder="Course number (e.g. CS200)" required />
           <input id="s_ProfName" name="ProfName" type="text" placeholder="Professor name" required />
           <input id="s_ProfHours" name="ProfHours" type="text" placeholder="Office hours (e.g. Tue 3–5pm)" required />
 

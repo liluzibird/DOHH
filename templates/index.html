@@ -10,15 +10,47 @@
       --green:#007a33;
       --green-dark:#005d26;
       --gold:#c39b00;
+
       --bg:#f4f6f8;
       --card:#ffffff;
       --text:#25313c;
       --muted:#66727f;
       --border:#d9e1e7;
+      --input-bg:#ffffff;
+      --soft:#eef2f4;
+      --soft-hover:#e3e8eb;
+      --vote-bg:#f0f3f5;
+      --vote-hover:#e7ecef;
+      --overlay:rgba(15,23,42,0.45);
+
       --shadow:0 10px 30px rgba(0,0,0,0.12);
     }
 
+    [data-theme="dark"]{
+      --bg:#0f1720;
+      --card:#18222d;
+      --text:#e7edf3;
+      --muted:#a8b4c0;
+      --border:#2b3a47;
+      --input-bg:#111a22;
+      --soft:#24313d;
+      --soft-hover:#2c3b48;
+      --vote-bg:#22303b;
+      --vote-hover:#2a3945;
+      --overlay:rgba(0,0,0,0.6);
+
+      --shadow:0 10px 30px rgba(0,0,0,0.35);
+    }
+
     *{box-sizing:border-box}
+
+    body, .search_panel, .result_item, .modal, input, select, button{
+      transition:
+        background-color 0.18s ease,
+        color 0.18s ease,
+        border-color 0.18s ease,
+        box-shadow 0.18s ease;
+    }
 
     body{
       font-family:Arial,sans-serif;
@@ -32,17 +64,37 @@
       padding:40px 16px;
     }
 
-    h1{
+    .top_bar{
+      width:100%;
+      max-width:900px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin:0 0 20px 0;
+    }
+
+    .top_bar h1{
+      margin:0;
+      text-align:left;
       font-style:italic;
       color:var(--gold);
-      margin:0 0 20px 0;
-      text-align:center;
+    }
+
+    .theme_toggle_btn{
+      background:var(--soft);
+      color:var(--text);
+      border:1px solid var(--border);
+    }
+
+    .theme_toggle_btn:hover{
+      background:var(--soft-hover);
     }
 
     .search_panel{
       width:100%;
       max-width:900px;
-      background:#fff;
+      background:var(--card);
       border:1px solid var(--border);
       border-radius:16px;
       padding:18px;
@@ -72,7 +124,8 @@
       padding:12px 14px;
       border:1px solid var(--border);
       border-radius:10px;
-      background:#fff;
+      background:var(--input-bg);
+      color:var(--text);
       font-size:14px;
       outline:none;
     }
@@ -115,12 +168,12 @@
     #suggest_btn:hover{background:#a98700}
 
     #clear_btn{
-      background:#eef2f4;
+      background:var(--soft);
       color:var(--text);
     }
 
     #clear_btn:hover{
-      background:#e3e8eb;
+      background:var(--soft-hover);
     }
 
     #result_list{
@@ -179,15 +232,16 @@
       align-items:center;
       justify-content:center;
       padding:0;
-      background:#f0f3f5;
-      color:#34424f;
+      background:var(--vote-bg);
+      color:var(--text);
       border:1px solid var(--border);
       border-radius:10px;
       font-size:18px;
       line-height:1;
     }
 
-    .vote_btn:hover{background:#e7ecef}
+    .vote_btn:hover{background:var(--vote-hover)}
+
     .vote_btn.active{
       background:var(--green);
       color:#fff;
@@ -204,7 +258,7 @@
     .modal_bg{
       position:fixed;
       inset:0;
-      background:rgba(15,23,42,0.45);
+      background:var(--overlay);
       display:none;
       align-items:center;
       justify-content:center;
@@ -214,7 +268,7 @@
     }
 
     .modal{
-      background:#fff;
+      background:var(--card);
       width:100%;
       max-width:460px;
       border-radius:16px;
@@ -244,7 +298,7 @@
     }
 
     .icon_btn:hover{
-      background:#f2f4f7;
+      background:var(--soft);
       color:var(--text);
     }
 
@@ -260,6 +314,8 @@
       border-radius:10px;
       font-size:14px;
       outline:none;
+      background:var(--input-bg);
+      color:var(--text);
     }
 
     .modal_actions{
@@ -270,12 +326,12 @@
     }
 
     .btn_secondary{
-      background:#eef2f4;
+      background:var(--soft);
       color:var(--text);
     }
 
     .btn_secondary:hover{
-      background:#e3e8eb;
+      background:var(--soft-hover);
     }
 
     .toast{
@@ -294,6 +350,13 @@
     @media (max-width:800px){
       .form_grid{grid-template-columns:1fr}
       .inline_combo{grid-template-columns:1fr}
+      .top_bar{
+        flex-direction:column;
+        align-items:stretch;
+      }
+      .top_bar h1{
+        text-align:center;
+      }
     }
   </style>
 
@@ -304,6 +367,34 @@
       return String(str || "").replace(/[&<>"']/g, function(m){
         return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
       });
+    }
+
+    function applyTheme(theme){
+      document.documentElement.setAttribute("data-theme", theme);
+      localStorage.setItem("dohh_theme", theme);
+
+      const $btn = $("#theme_toggle");
+      if(theme === "dark"){
+        $btn.text("☀️ Light Mode");
+      } else {
+        $btn.text("🌙 Dark Mode");
+      }
+    }
+
+    function initTheme(){
+      const savedTheme = localStorage.getItem("dohh_theme");
+      if(savedTheme === "dark" || savedTheme === "light"){
+        applyTheme(savedTheme);
+        return;
+      }
+
+      const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      applyTheme(prefersDark ? "dark" : "light");
+    }
+
+    function toggleTheme(){
+      const current = document.documentElement.getAttribute("data-theme") || "light";
+      applyTheme(current === "dark" ? "light" : "dark");
     }
 
     function getVoterToken(){
@@ -533,6 +624,9 @@
     }
 
     $(function(){
+      initTheme();
+      $("#theme_toggle").on("click", toggleTheme);
+
       $("#suggest_btn").on("click", openSuggest);
       $("#modal_close").on("click", closeSuggest);
       $("#suggest_form").on("submit", submitSuggest);
@@ -561,7 +655,10 @@
   </script>
 </head>
 <body>
-  <h1><em>Welcome to DOHH</em></h1>
+  <div class="top_bar">
+    <h1><em>Welcome to DOHH</em></h1>
+    <button id="theme_toggle" type="button" class="theme_toggle_btn">🌙 Dark Mode</button>
+  </div>
 
   <div class="search_panel">
     <div class="form_grid">
